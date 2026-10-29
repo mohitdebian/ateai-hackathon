@@ -1,0 +1,21 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer Architectural 'A' Silhouette -->
+  <path
+    d="M52.5 15.2C56 9.6 64 9.6 67.5 15.2L105.8 77.2C109.5 83.2 105.2 91 98.1 91H79.6C75.8 91 72.3 88.9 70.5 85.5L60 65.2L49.5 85.5C47.7 88.9 44.2 91 40.4 91H21.9C14.8 91 10.5 83.2 14.2 77.2L52.5 15.2Z"
+    fill="#FFFFFF"
+  />
+  <!-- Central Intelligence Spark (Sky-Blue) -->
+  <path
+    d="M60 34L74.5 61H45.5L60 34Z"
+    fill="#40B9FF"
+  />
+  <!-- Digital Workforce Cross-Bridge (Sky-Blue) -->
+  <rect
+    x="37"
+    y="69"
+    width="46"
+    height="9"
+    rx="4.5"
+    fill="#40B9FF"
+  />
+</svg>
