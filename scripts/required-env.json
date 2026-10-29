@@ -1,0 +1,19 @@
+{
+  "_comment": "Env vars a deploy cannot start without, checked by .github/workflows/env-check.yml. Not the same as .env.example, which lists every var including optional ones (PUBLIC_APP_URL falls back to the request origin; COMPOSIO/AGENTMAIL/VAPI keys degrade via hasEnv). Add a name here only when its absence breaks the environment.",
+  "vercel": [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WORKER_URL",
+    "WORKER_SHARED_SECRET",
+    ["ANTHROPIC_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"],
+    "VOYAGE_API_KEY",
+    "NEXT_PUBLIC_VAPI_PUBLIC_KEY"
+  ],
+  "worker": [
+    ["ANTHROPIC_API_KEY", "NVIDIA_API_KEY", "NIM_API_KEY"],
+    ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"],
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WORKER_SHARED_SECRET"
+  ]
+}
