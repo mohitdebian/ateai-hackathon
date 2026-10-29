@@ -1,0 +1,287 @@
+/* ============================================================
+   @ate/design — design tokens + base stylesheet.
+
+   Values come from the design system,
+   where --ate-blue and --sky-blue are fixed
+   brand colours. App-level rules live in
+   apps/web/app/(app)/app.css and apps/web/app/public.css; neither
+   may redefine a token declared here.
+   Font faces are wired in fonts/fonts.ts (next/font/local).
+   ============================================================ */
+
+/* ---- design tokens ---- */
+:root {
+  color-scheme: dark;
+
+  /* brand — fixed */
+  --ate-blue: #006dec;
+  --sky-blue: #40b9ff;
+
+  /* accent: the product UI runs on Sky Blue */
+  --blue: var(--sky-blue);
+  --blue-deep: var(--ate-blue);
+  --on-blue: #0a0a0b;
+  --blue-bright: #5fc5ff; /* hover */
+
+  /* canvas + surfaces */
+  --bg: #0a0a0b;
+  --bg-2: #0f0f10; /* inputs, textareas */
+  --panel: #131315; /* cards, panels, the activity rail */
+  --panel-2: rgba(20, 20, 22, 0.96); /* panels over the dashboard artwork */
+  --surface: #1f1f23; /* raised: org-chart nodes, hover states */
+
+  /* text — three levels, matching the Figma type ramp */
+  --fg: #ffffff;
+  --fg-soft: rgba(255, 255, 255, 0.6);
+  --mut: rgba(255, 255, 255, 0.4);
+
+  /* lines + translucent fills */
+  --line: rgba(255, 255, 255, 0.12);
+  --line-2: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --fill: rgba(255, 255, 255, 0.04);
+  --fill-2: rgba(255, 255, 255, 0.02);
+
+  /* status */
+  --green: #22c55e;
+  --green-soft: #4ade80;
+  --amber: #f0864a;
+  --red: #f0664a;
+
+  /* type */
+  --f-disp: var(--font-grotesk, "Overused Grotesk"), "Helvetica Neue",
+    Helvetica, Arial, system-ui, sans-serif;
+  --f-mono: var(--f-disp);
+  /* Alpha Lyrae is the logotype face — reserved for the wordmark. */
+  --f-logo: var(--font-alpha-lyrae, "Alpha Lyrae"), var(--f-disp);
+
+  /* geometry — Figma uses an 8px / 12px / 16px radius set */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --header-h: 72px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* ---- reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  padding-top: var(--header-h); /* clears the fixed app/public header */
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-disp);
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+::selection {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+
+/* ---- type ---- */
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mut);
+}
+.h-lg {
+  font-size: clamp(28px, 3.2vw, 46px);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.h-md {
+  font-size: clamp(21px, 2vw, 28px);
+  letter-spacing: -0.022em;
+  line-height: 1.12;
+}
+.lede {
+  font-size: clamp(17px, 1.5vw, 21px);
+  line-height: 1.5;
+  color: var(--fg-soft);
+  font-weight: 400;
+}
+.muted {
+  color: var(--fg-soft);
+}
+
+/* ---- card (components/Card.tsx) ----
+   A class rather than inline style, so an app-level class such as
+   .profile-card can override it. */
+.card {
+  padding: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ---- brand mark (components/brand/AteMark.tsx) ----
+   Fill rules live on the svg element so they work with or without
+   a .mark wrapper. */
+.mark {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 0;
+  width: 1.15em;
+  height: 1.15em;
+}
+.mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.pmk-1,
+.ate-1 {
+  fill: var(--sky-blue);
+}
+.pmk-2,
+.ate-2 {
+  fill: var(--fg);
+}
+.solid .pmk-1,
+.solid .pmk-2,
+.solid .ate-1,
+.solid .ate-2 {
+  fill: currentColor;
+}
+
+/* ---- buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 24px;
+  font-family: var(--f-disp);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  border: 0;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: 0.2s var(--ease);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn-arrow {
+  transition: transform 0.25s var(--ease);
+}
+.btn:hover .btn-arrow {
+  transform: translateX(3px);
+}
+.btn-solid {
+  background: var(--fg);
+  color: var(--on-blue);
+}
+.btn-solid:hover {
+  background: #e6e6e6; /* .btn-solid hover */
+}
+.btn-blue {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+.btn-blue:hover {
+  background: var(--blue-bright);
+}
+.btn-ghost {
+  background: var(--fill);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.btn-dark {
+  background: var(--panel);
+  color: var(--fg);
+}
+.btn-dark:hover {
+  background: var(--surface);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- global scrollbar (dark sleek scrollbars throughout the application) ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@ate/design",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ate.ai brand assets and the base stylesheet the app builds on — logos, fonts, design tokens.",
+  "exports": {
+    "./styles/globals.css": "./styles/globals.css",
+    "./fonts/fonts": "./fonts/fonts.ts",
+    "./components/*": "./components/*.tsx"
+  },
+  "peerDependencies": {
+    "next": "15.2.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5"
+  }
+}
