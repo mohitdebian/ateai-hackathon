@@ -1,0 +1,155 @@
+# Deploy the worker to Cloud Run: docker build → Artifact Registry → deploy.
+# One-time GCP + GitHub-secrets setup: docs/architecture.md §Operations
+# (details in the closed "worker deploy" GitHub issue).
+#
+# Runtime env vars (API keys, WORKER_SHARED_SECRET) are set ONCE on the Cloud
+# Run service — `gcloud run deploy` preserves them, so this
+# workflow only ships a new image and no secrets live in the repo or in CI.
+# That is also what keeps the two environments apart: ate-worker-prod and
+# ate-worker-dev each hold their own Supabase creds and shared secret.
+
+name: Deploy worker
+
+# Two environments, one workflow: `main` deploys the production worker and
+# `dev` deploys the development one (see SERVICE below). Pushing to any other
+# branch never deploys.
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "apps/worker/**"
+      - "packages/shared/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+# Never run two deploys at once against the SAME service (out-of-order images).
+# Keyed by branch so a dev deploy doesn't queue behind a production one.
+concurrency: deploy-worker-${{ github.ref_name }}
+
+# Workload Identity Federation: the auth step exchanges GitHub's OIDC token
+# for short-lived GCP credentials — no stored key. id-token: write lets the
+# job mint that OIDC token.
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  # Branch → environment. Explicit allowlist rather than a fallback: a branch
+  # that is neither main nor dev resolves to an empty name and the deploy fails
+  # loudly instead of shipping to production. Each environment has its own
+  # worker AND its own heartbeat job, so both map off the branch.
+  SERVICE: ${{ github.ref_name == 'main' && 'ate-worker-prod' || github.ref_name == 'dev' && 'ate-worker-dev' || '' }}
+  HEARTBEAT_JOB: ${{ github.ref_name == 'main' && 'ate-heartbeat' || github.ref_name == 'dev' && 'ate-heartbeat-dev' || '' }}
+  # <region>-docker.pkg.dev/<project>/<artifact-repo>/<image>
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ate/worker:${{ github.sha }}
+  HEARTBEAT_SCHEDULE: "0 9,13,17 * * 1-5"
+  HEARTBEAT_TIMEZONE: America/New_York
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target service
+        # workflow_dispatch can run from any branch; refuse rather than guess.
+        run: |
+          if [ -z "$SERVICE" ]; then
+            echo "::error::No Cloud Run service mapped to branch '$GITHUB_REF_NAME'. Deploy from main or dev."
+            exit 1
+          fi
+          echo "Deploying $GITHUB_REF_NAME → $SERVICE (heartbeat: $HEARTBEAT_JOB)"
+
+      - uses: actions/checkout@v4
+
+      - name: Validate GCP credentials
+        id: check_creds
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          CREDS_JSON: ${{ secrets.GCP_CREDENTIALS_JSON }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ]; then
+            echo "auth_mode=wif" >> $GITHUB_OUTPUT
+          elif [ -n "$CREDS_JSON" ]; then
+            echo "auth_mode=json" >> $GITHUB_OUTPUT
+          else
+            echo "auth_mode=none" >> $GITHUB_OUTPUT
+            echo "::warning::GCP credentials (GCP_WIF_PROVIDER or GCP_CREDENTIALS_JSON) not configured in repository secrets. Skipping Cloud Run deploy."
+          fi
+
+      - name: Authenticate to Google Cloud (Workload Identity)
+        if: steps.check_creds.outputs.auth_mode == 'wif'
+        uses: google-github-actions/auth@v2
+        with:
+          # projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          # github-deployer@<PROJECT_ID>.iam.gserviceaccount.com
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Authenticate to Google Cloud (Service Account Key)
+        if: steps.check_creds.outputs.auth_mode == 'json'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.check_creds.outputs.auth_mode != 'none'
+
+      - name: Build image
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        run: docker build -f apps/worker/Dockerfile -t "$IMAGE" .
+
+      - name: Push to Artifact Registry
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker push "$IMAGE"
+
+      - name: Refuse to create a new service
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        # Deploy only ever UPDATES one of the two known services. `gcloud run
+        # deploy` silently creates a service that does not exist, which is how
+        # a stale branch carrying its own copy of this workflow resurrected the
+        # deleted `ate-worker` with no env vars set (#237). Checking first
+        # turns that silent creation into a red build.
+        run: |
+          if ! gcloud run services describe "$SERVICE" \
+                 --project "$PROJECT_ID" --region "$REGION" >/dev/null 2>&1; then
+            echo "::error::Service '$SERVICE' does not exist. Deploy updates existing services only; create one deliberately, not from CI."
+            exit 1
+          fi
+
+      - name: Deploy to Cloud Run
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        # --no-cpu-throttling: the worker keeps running turns after acking 202
+        # (background delivery), so the container must not be throttled between
+        # requests. /turn is guarded by WORKER_SHARED_SECRET, hence
+        # --allow-unauthenticated at the Cloud Run layer.
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --image "$IMAGE" \
+            --allow-unauthenticated \
+            --no-cpu-throttling \
+            --min-instances 1 \
+            --memory 512Mi \
+            --timeout 180 \
+            --max-instances 3
+
+      - name: Apply heartbeat schedule
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        # Runs after the Cloud Run deploy: if the job name or the SA's
+        # cloudscheduler.admin role is wrong, the worker still ships and only
+        # this step goes red.
+        run: |
+          gcloud scheduler jobs update http "$HEARTBEAT_JOB" \
+            --project   "$PROJECT_ID" \
+            --location  "$REGION" \
+            --schedule  "$HEARTBEAT_SCHEDULE" \
+            --time-zone "$HEARTBEAT_TIMEZONE"
+
+      - name: Show service URL
+        if: steps.check_creds.outputs.auth_mode != 'none'
+        run: gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)'

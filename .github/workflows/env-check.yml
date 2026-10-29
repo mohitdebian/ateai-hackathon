@@ -1,0 +1,60 @@
+# Blocks a PR when a required env var is missing from the environment that PR
+# ships to, so the gap surfaces before the merge instead of as a runtime throw
+# from `must()` on the first request that needs it (#238).
+#
+# Which environment is checked comes from the PR's base branch: a PR into `dev`
+# checks the development environment, and the `dev` → `main` release PR checks
+# production. Presence only — no value is ever read or logged.
+
+name: Env check
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  env-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Workload Identity Federation needs an OIDC token to reach Cloud Run.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate GCP credentials
+        id: check_auth
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ]; then
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "::warning::GCP_WIF_PROVIDER not configured in repository secrets. Skipping env check."
+          fi
+
+      - uses: google-github-actions/auth@v2
+        if: steps.check_auth.outputs.has_creds == 'true'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.check_auth.outputs.has_creds == 'true'
+
+      - name: Check required env vars
+        if: steps.check_auth.outputs.has_creds == 'true'
+        env:
+          CLOUDSDK_CORE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # The runner has no .vercel/ link (gitignored), so the CLI needs the
+          # team to resolve the project against.
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          # A PR into main is the release, so it must check production.
+          TARGET: ${{ github.base_ref == 'main' && 'production' || 'development' }}
+        run: node scripts/check-env.mjs "$TARGET"

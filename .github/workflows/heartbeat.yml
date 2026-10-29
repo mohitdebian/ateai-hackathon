@@ -1,0 +1,25 @@
+name: Employee Heartbeat
+
+on:
+  schedule:
+    # 9:00 AM, 1:00 PM, 5:00 PM EST (Mon-Fri) -> 13:00, 17:00, 21:00 UTC
+    - cron: "0 13,17,21 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Heartbeat
+        run: |
+          TARGET_URL="${{ secrets.APP_URL || vars.APP_URL || 'https://ateai.vercel.app' }}"
+          TARGET_URL="${TARGET_URL%/}"
+          ENDPOINT="$TARGET_URL/api/cron/heartbeat"
+          echo "Triggering heartbeat at $ENDPOINT"
+
+          AUTH_HEADER=""
+          if [ -n "${{ secrets.CRON_SECRET }}" ]; then
+            AUTH_HEADER="-H \"Authorization: Bearer ${{ secrets.CRON_SECRET }}\""
+          fi
+
+          eval curl -fsS -X GET "$ENDPOINT" $AUTH_HEADER

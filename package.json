@@ -1,0 +1,27 @@
+{
+  "name": "digital-workforce",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ate.ai Digital Workforce — monorepo (web dashboard, worker, shared contracts, design system).",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ate/web dev",
+    "dev:all": "pnpm --filter @ate/web --filter @ate/worker --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  }
+}

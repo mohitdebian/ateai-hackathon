@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# dependencies
+node_modules/
+
+# builds
+.next/
+dist/
+!apps/worker/dist/
+apps/worker/dist/*
+!apps/worker/dist/bundle.js
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel
+
+# Claude Code local config / session memory
+.claude/
+supabase/.temp/
+graphify-out/

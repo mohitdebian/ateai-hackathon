@@ -1,0 +1,43 @@
+# Applies Supabase migrations to the database that matches the branch, so a
+# merged feature never ships against a database missing its column (#232, #238).
+#
+# Branch → database is an explicit allowlist, mirroring SERVICE in
+# deploy-worker.yml: a branch that is neither main nor dev resolves to an empty
+# secret name and the job fails rather than guessing which database to write.
+
+name: Migrate database
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/migrate.yml"
+  workflow_dispatch:
+
+# Never run two migrations against the same database at once.
+concurrency: migrate-${{ github.ref_name }}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.113.0
+
+      - name: Apply migrations
+        env:
+          # Each branch reads its own connection string. An unmapped branch
+          # gets an empty string and the guard below stops the job.
+          DB_URL: ${{ github.ref_name == 'main' && secrets.SUPABASE_DB_URL_PROD || github.ref_name == 'dev' && secrets.SUPABASE_DB_URL_DEV || '' }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::No database connection string configured for '$GITHUB_REF_NAME' in GitHub secrets (SUPABASE_DB_URL_PROD / SUPABASE_DB_URL_DEV). Skipping database push."
+            exit 0
+          fi
+          echo "Pending migrations for $GITHUB_REF_NAME:"
+          supabase db push --db-url "$DB_URL" --dry-run
+          supabase db push --db-url "$DB_URL"
