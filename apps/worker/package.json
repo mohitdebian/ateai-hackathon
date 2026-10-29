@@ -1,0 +1,29 @@
+{
+  "name": "@ate/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "build": "tsc -p tsconfig.json && pnpm run bundle",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/bundle.js --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@composio/anthropic": "^0.10.0",
+    "@composio/core": "^0.13.1",
+    "@ate/shared": "workspace:*",
+    "@sentry/node": "10.70.0",
+    "@supabase/supabase-js": "2.45.4",
+    "mammoth": "^1.12.0",
+    "unpdf": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.23.1",
+    "typescript": "^5.7.3"
+  }
+}
